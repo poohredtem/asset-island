@@ -1,0 +1,1 @@
+{"description":"Asset Island（単一HTML）＋ jsdomテスト","devDependencies":{"jsdom":"31.0.0"},"name":"asset-island","private":true,"scripts":{"test":"node test/run_tests.js"},"version":"6.2.3"}
