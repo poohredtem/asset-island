@@ -32,7 +32,7 @@ function openSim(d) {
   console.log('[初期表示と文言]');
   {
     const dom = load(); const d = dom.window.document;
-    ok('版表記 v6.2.3', d.querySelector('.brand').textContent.includes('v6.2.3') && d.title.includes('v6.2.3'));
+    ok('版表記 v6.2.4', d.querySelector('.brand').textContent.includes('v6.2.4') && d.title.includes('v6.2.4'));
     ok('初期の純資産 ¥12,900,000', d.getElementById('netWorth').textContent.includes('12,900,000'));
     const footer = d.querySelector('.footer-note').textContent;
     ok('免責（投資助言ではない／教育・動機づけ／保証しない）', footer.includes('投資助言ではなく') && footer.includes('教育・動機づけ') && footer.includes('保証しません'));
@@ -107,6 +107,33 @@ function openSim(d) {
       break;
     }
     ok('人生が最後まで進み、結果レポートが出る', !!q('.report-card'));
+  }
+
+  console.log('[v6.2.4 モーダルと保存の堅牢化]');
+  {
+    const dom = load(); const w = dom.window, d = w.document, $ = (id) => d.getElementById(id);
+    ok('確認モーダル3つに role=dialog / aria-modal', ['guideModal', 'importModal', 'resetModal'].every((id) => $(id).getAttribute('role') === 'dialog' && $(id).getAttribute('aria-modal') === 'true'));
+    ok('prefers-reduced-motion 対応CSS', html.includes('prefers-reduced-motion'));
+    $('introSkipBtn').click(); await sleep(30);
+    $('guideBtn').focus(); $('guideBtn').click();
+    await sleep(30);
+    ok('モーダルを開くと中へフォーカスが移る', d.activeElement === $('closeGuide'));
+    d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await sleep(30);
+    ok('Escapeで閉じてフォーカスが戻る', !$('guideModal').classList.contains('open') && d.activeElement === $('guideBtn'));
+    $('resetBtn').click();
+    await sleep(30);
+    ok('リセット確認が開く', $('resetModal').classList.contains('open'));
+    d.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await sleep(30);
+    ok('Escapeはキャンセル扱いでリセットされない', !$('resetModal').classList.contains('open') && $('netWorth').textContent.includes('12,900,000'));
+  }
+  {
+    const dom = load(); const w = dom.window, d = w.document, $ = (id) => d.getElementById(id);
+    Object.getPrototypeOf(w.localStorage).setItem = () => { throw new Error('quota'); };
+    $('saveAssetsBtn').click();
+    await sleep(450);
+    ok('保存失敗時にトーストで通知', $('toast').textContent.includes('保存できませんでした'));
   }
 
   console.log(`\n結果: ${pass} パス / ${fail} 失敗`);
