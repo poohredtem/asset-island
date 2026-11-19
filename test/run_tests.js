@@ -32,7 +32,7 @@ function openSim(d) {
   console.log('[初期表示と文言]');
   {
     const dom = load(); const d = dom.window.document;
-    ok('版表記 v6.2.4', d.querySelector('.brand').textContent.includes('v6.2.4') && d.title.includes('v6.2.4'));
+    ok('版表記 v6.2.5', d.querySelector('.brand').textContent.includes('v6.2.5') && d.title.includes('v6.2.5'));
     ok('初期の純資産 ¥12,900,000', d.getElementById('netWorth').textContent.includes('12,900,000'));
     const footer = d.querySelector('.footer-note').textContent;
     ok('免責（投資助言ではない／教育・動機づけ／保証しない）', footer.includes('投資助言ではなく') && footer.includes('教育・動機づけ') && footer.includes('保証しません'));
@@ -134,6 +134,39 @@ function openSim(d) {
     $('saveAssetsBtn').click();
     await sleep(450);
     ok('保存失敗時にトーストで通知', $('toast').textContent.includes('保存できませんでした'));
+  }
+
+  console.log('[v6.2.5 プレビューの保存漏れ対策]');
+  {
+    const dom = load(); const w = dom.window, d = w.document, $ = (id) => d.getElementById(id);
+    const stored = () => JSON.parse(w.localStorage.getItem('assetIslandSave_v3'));
+    const set = (id, v) => { const el = $(id); el.value = v; el.dispatchEvent(new w.Event('input', { bubbles: true })); };
+    set('cashInput', 9000000);
+    $('collectDividendsBtn').click();
+    ok('プレビュー値は別操作（コイン回収）で保存されない', stored().cash === 500000);
+    $('saveAssetsBtn').click();
+    ok('「資産を反映」で初めて保存される', stored().cash === 9000000);
+  }
+
+  console.log('[v6.2.5 売却後の待機現金]');
+  {
+    const dom = load(simSeed((sm) => { sm.phase = 'cardResult'; sm.cardIdx = 3; sm.lastResult = { main: 'テスト', sub: '' }; sm.cash = 1300000; sm.invested = 4000000; sm.monthly = 0; sm.deck[5] = -0.30; }));
+    const w = dom.window, d = w.document;
+    const root = openSim(d);
+    const stored = () => JSON.parse(w.localStorage.getItem('assetIslandSave_v3'));
+    root.querySelector('[data-sim-action="toMarket"]').click();
+    root.querySelector('[data-sim-action="crashSell"]').click();
+    ok('売却で待機額が記録される', stored().sim.hold === 1400000 && stored().sim.crashesSold === 1);
+    root.querySelector('[data-sim-action="nextYear"]').click();
+    root.querySelector('[data-sim-action="advance"]').click();
+    const sm2 = stored().sim;
+    ok('翌年の自動投資は待機分を除く（投資 ¥3,306,000）', sm2.invested === 3306000);
+    ok('待機は1年で解除される', sm2.hold === 0);
+  }
+  {
+    const dom = load(simSeed((sm) => { sm.deck[5] = -0.25; sm.lastReturn = -0.2; }));
+    const stored = JSON.parse(dom.window.localStorage.getItem('assetIslandSave_v3'));
+    ok('再読込後も暴落の山札と直近リターンが保持される', stored.sim.deck[5] === -0.25 && stored.sim.lastReturn === -0.2);
   }
 
   console.log(`\n結果: ${pass} パス / ${fail} 失敗`);
